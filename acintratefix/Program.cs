@@ -18,60 +18,68 @@ namespace acintratefix
             // change the value: divide by 100, format as NN.NNNNNN
             // stream back to new file
 
-            Console.WriteLine("Enter the full filename, path included: ");
-            string fileName = Console.ReadLine();  //@"C:\_github\anacredit-interest-rate-fix\testfile.txt";
-            Console.WriteLine("Enter the output filename, path included: ");
-            string outFileName = Console.ReadLine(); // @"C:\_github\anacredit-interest-rate-fix\outfile.txt";
+            Console.WriteLine("Enter the full folder containing all files to be checked: ");
+            string folderIn = Console.ReadLine(); 
+            Console.WriteLine("Enter the output folder where new files will be created: ");
+            string folderOut= Console.ReadLine(); 
 
             int flushCount = 0;
 
-            using (StreamReader sr = File.OpenText(fileName))
+            var files = Directory.GetFiles(folderIn);
+
+            foreach (var file in files)
             {
-
-                Console.WriteLine("Opening file... wait a few seconds...");
-
-                using (StreamWriter outfile = new StreamWriter(outFileName))
+                
+                using (StreamReader sr = File.OpenText(file))
                 {
-                    outfile.AutoFlush = false;
 
-                    string s = String.Empty;
-                    while ((s = sr.ReadLine()) != null)
+                    Console.WriteLine("Opening file... wait a few seconds...");
+
+                    var outFileName = file.Replace(folderIn, folderOut);
+
+                    using (StreamWriter outfile = new StreamWriter(outFileName))
                     {
-                        //do your stuff here
-                        Regex r = new Regex(@"<InterestRate>(.+?)<\/InterestRate>|<InterestRateCap>(.+?)<\/InterestRateCap>|<InterestRateFloor>(.+?)<\/InterestRateFloor>|<InterestRateSpreadMargin>(.+?)<\/InterestRateSpreadMargin>");
-                        if (r.IsMatch(s))
+                        outfile.AutoFlush = false;
+
+                        string s = String.Empty;
+                        while ((s = sr.ReadLine()) != null)
                         {
-                            Console.Write(s.ToString());
-                            var value = s.Split('>')[1].Split('<')[0].ToString();
-                            decimal rate = 0;
-                            Decimal.TryParse(value, out rate);
-                            if (rate == 0)
+                            //do your stuff here
+                            Regex r = new Regex(@"<InterestRate>(.+?)<\/InterestRate>|<InterestRateCap>(.+?)<\/InterestRateCap>|<InterestRateFloor>(.+?)<\/InterestRateFloor>|<InterestRateSpreadMargin>(.+?)<\/InterestRateSpreadMargin>");
+                            if (r.IsMatch(s))
                             {
-                                Console.WriteLine($" --> {s}");
-                                outfile.WriteLine(s);
+                                Console.Write(s.ToString());
+                                var value = s.Split('>')[1].Split('<')[0].ToString();
+                                decimal rate = 0;
+                                Decimal.TryParse(value, out rate);
+                                if (rate == 0)
+                                {
+                                    Console.WriteLine($" --> {s}");
+                                    outfile.WriteLine(s);
+                                }
+                                else
+                                {
+                                    var newRate = rate / 100;
+                                    var newLine = s.Replace(value, newRate.ToString("0.000000"));
+                                    Console.WriteLine($" --> {newLine}");
+                                    outfile.WriteLine(newLine);
+                                }
                             }
                             else
+                                outfile.WriteLine(s);
+
+                            flushCount++;
+
+                            // flush every 2000 lines... 
+                            if (flushCount % 2000 == 0)
                             {
-                                var newRate = rate / 100;
-                                var newLine = s.Replace(value, newRate.ToString("0.000000"));
-                                Console.WriteLine($" --> {newLine}");
-                                outfile.WriteLine(newLine);
+                                outfile.Flush();
                             }
-                        }
-                        else
-                            outfile.WriteLine(s);
-
-                        flushCount++;
-
-                        // flush every 2000 lines... 
-                        if (flushCount % 2000 == 0)
-                        {
-                            outfile.Flush();
                         }
                     }
                 }
             }
-
+            Console.WriteLine("Finised");
             Console.ReadKey();
         }
     }
